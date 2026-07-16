@@ -3,19 +3,27 @@ import random
 import pandas as pd
 import streamlit as st
 
+st.set_page_config(page_title="Blackjack Strategy Lab", page_icon="🃏")
 
-st.set_page_config(page_title="Blackjack Lite", page_icon="🃏", layout="centered")
+# Each style stands at a different total. This is our experiment variable.
+STYLES = {"Cautious": 15, "Standard": 17, "Aggressive": 19}
 
 
-# ----- Card and scoring functions -----------------------------------------
+# ----- Game functions ------------------------------------------------------
 
-def draw_card():
-    """Return a random card value. Jack, Queen, and King all equal 10."""
-    return random.choice([2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10, 11])
+def new_deck():
+    """Create and shuffle a real 52-card deck using card values."""
+    deck = ([11, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10] * 4)
+    random.shuffle(deck)
+    return deck
+
+
+def draw_card(deck):
+    return deck.pop()
 
 
 def hand_total(cards):
-    """Add the cards, changing an ace from 11 to 1 when needed."""
+    """Count an ace as 1 instead of 11 when the hand would bust."""
     total = sum(cards)
     aces = cards.count(11)
     while total > 21 and aces > 0:
@@ -25,19 +33,15 @@ def hand_total(cards):
 
 
 def show_cards(cards):
-    """Turn a list such as [11, 10] into the text 'A  10'."""
     return "  ".join("A" if card == 11 else str(card) for card in cards)
 
 
-def dealer_turn(cards):
-    """The dealer must draw while the total is below 17."""
+def dealer_turn(cards, deck):
     while hand_total(cards) < 17:
-        cards.append(draw_card())
-    return cards
+        cards.append(draw_card(deck))
 
 
 def choose_result(player_total, dealer_total):
-    """Use conditions to decide the result of one round."""
     if player_total > 21:
         return "Loss"
     if dealer_total > 21 or player_total > dealer_total:
@@ -47,93 +51,116 @@ def choose_result(player_total, dealer_total):
     return "Tie"
 
 
-# ----- Session state keeps information after a button is clicked -----------
-
-if "player" not in st.session_state:
-    st.session_state.player = [draw_card(), draw_card()]
-    st.session_state.dealer = [draw_card(), draw_card()]
-    st.session_state.round_over = False
-    st.session_state.message = "Choose Hit or Stand."
-    st.session_state.history = []
-
-
-def save_round(result, mode="Played"):
-    """Save one completed round as a dictionary for the results table."""
-    st.session_state.history.append({
+def make_record(player, dealer, starting_total, hits, result, style, mode):
+    """Create one useful row of data describing the player's round."""
+    return {
         "Round": len(st.session_state.history) + 1,
         "Mode": mode,
-        "Player Total": hand_total(st.session_state.player),
-        "Dealer Total": hand_total(st.session_state.dealer),
+        "Play Style": style,
+        "Starting Total": starting_total,
+        "Dealer Up Card": dealer[0],
+        "Number of Hits": hits,
+        "Cards in Hand": len(player),
+        "Final Player Total": hand_total(player),
+        "Dealer Total": hand_total(dealer),
+        "Player Bust": hand_total(player) > 21,
         "Result": result,
-    })
+    }
+
+
+# ----- Session state -------------------------------------------------------
+
+def new_round():
+    deck = new_deck()
+    st.session_state.player = [draw_card(deck), draw_card(deck)]
+    st.session_state.dealer = [draw_card(deck), draw_card(deck)]
+    st.session_state.deck = deck
+    st.session_state.starting_total = hand_total(st.session_state.player)
+    st.session_state.hits = 0
+    st.session_state.round_over = False
+    st.session_state.message = "Choose Hit or Stand."
+
+
+if "history" not in st.session_state:
+    st.session_state.history = []
+required_game_data = ["player", "dealer", "deck", "starting_total", "hits"]
+if any(name not in st.session_state for name in required_game_data):
+    new_round()
+
+
+def finish_manual_round(result, style):
+    record = make_record(
+        st.session_state.player, st.session_state.dealer,
+        st.session_state.starting_total, st.session_state.hits,
+        result, style, "Played"
+    )
+    st.session_state.history.append(record)
     st.session_state.round_over = True
 
 
-def new_round():
-    st.session_state.player = [draw_card(), draw_card()]
-    st.session_state.dealer = [draw_card(), draw_card()]
-    st.session_state.round_over = False
-    st.session_state.message = "New round! Choose Hit or Stand."
+def simulate_round(style):
+    """Play one automatic round using the selected strategy."""
+    deck = new_deck()
+    player = [draw_card(deck), draw_card(deck)]
+    dealer = [draw_card(deck), draw_card(deck)]
+    starting_total = hand_total(player)
+    hits = 0
 
-
-def simulate_round():
-    """Simulated player uses one simple rule: hit below 17, then stand."""
-    player = [draw_card(), draw_card()]
-    dealer = [draw_card(), draw_card()]
-    while hand_total(player) < 17:
-        player.append(draw_card())
+    while hand_total(player) < STYLES[style]:
+        player.append(draw_card(deck))
+        hits += 1
     if hand_total(player) <= 21:
-        dealer_turn(dealer)
-    return hand_total(player), hand_total(dealer), choose_result(
-        hand_total(player), hand_total(dealer)
-    )
+        dealer_turn(dealer, deck)
+
+    result = choose_result(hand_total(player), hand_total(dealer))
+    return make_record(player, dealer, starting_total, hits, result, style, "Simulation")
 
 
-def run_simulation(number_of_rounds):
-    """Add 10 or 50 automatically played rounds to the history."""
-    for _ in range(number_of_rounds):
-        player_total, dealer_total, result = simulate_round()
-        st.session_state.history.append({
-            "Round": len(st.session_state.history) + 1,
-            "Mode": "Simulation",
-            "Player Total": player_total,
-            "Dealer Total": dealer_total,
-            "Result": result,
-        })
+def run_simulation(rounds, style):
+    for _ in range(rounds):
+        st.session_state.history.append(simulate_round(style))
 
 
-# ----- Page and button events ---------------------------------------------
+# ----- Player interface ----------------------------------------------------
 
-st.title("🃏 Blackjack Lite")
-st.caption("Get closer to 21 than the dealer without going over.")
+st.title("🃏 Blackjack Strategy Lab")
+st.caption("Play the game, then investigate which playing style performs best.")
+manual_style = st.selectbox(
+    "How would you describe your playing style?",
+    list(STYLES),
+    index=1,
+    help="Cautious stands early; aggressive accepts more bust risk."
+)
 
-left, right = st.columns(2)
-with left:
-    dealer_cards = show_cards(st.session_state.dealer)
+dealer_col, player_col = st.columns(2)
+with dealer_col:
+    visible = show_cards(st.session_state.dealer)
     if not st.session_state.round_over:
-        dealer_cards = str(st.session_state.dealer[0]) + "  ?"
+        visible = f"{st.session_state.dealer[0]}  ?"
     st.subheader("Dealer")
-    st.info(dealer_cards)
-with right:
+    st.info(visible)
+with player_col:
     st.subheader("Your hand")
     st.success(show_cards(st.session_state.player))
     st.write("Total:", hand_total(st.session_state.player))
+    st.write("Cards in hand:", len(st.session_state.player))
 
 hit, stand, again = st.columns(3)
 if hit.button("Hit", disabled=st.session_state.round_over, use_container_width=True):
-    st.session_state.player.append(draw_card())
+    st.session_state.player.append(draw_card(st.session_state.deck))
+    st.session_state.hits += 1
     if hand_total(st.session_state.player) > 21:
         st.session_state.message = "Bust! You lose."
-        save_round("Loss")
+        finish_manual_round("Loss", manual_style)
     else:
         st.session_state.message = "You drew a card. Hit again or stand?"
     st.rerun()
 
 if stand.button("Stand", disabled=st.session_state.round_over, use_container_width=True):
-    dealer_turn(st.session_state.dealer)
+    dealer_turn(st.session_state.dealer, st.session_state.deck)
     result = choose_result(hand_total(st.session_state.player), hand_total(st.session_state.dealer))
     st.session_state.message = f"{result}! Dealer total: {hand_total(st.session_state.dealer)}"
-    save_round(result)
+    finish_manual_round(result, manual_style)
     st.rerun()
 
 if again.button("New Round", use_container_width=True):
@@ -143,16 +170,22 @@ if again.button("New Round", use_container_width=True):
 st.warning(st.session_state.message)
 
 
-# ----- Analytics, simulations, and data export ----------------------------
+# ----- Strategy experiment and analysis -----------------------------------
 
 st.divider()
-st.header("Game Analytics")
+st.header("Strategy Experiment")
+simulation_style = st.selectbox("Strategy to simulate", list(STYLES), index=1)
+st.caption(
+    f"{simulation_style} players hit below {STYLES[simulation_style]} and stand at "
+    f"{STYLES[simulation_style]} or higher. The dealer always hits below 17."
+)
+
 sim10, sim50, clear = st.columns(3)
-if sim10.button("Simulate 10", use_container_width=True):
-    run_simulation(10)
+if sim10.button("Run 10 rounds", use_container_width=True):
+    run_simulation(10, simulation_style)
     st.rerun()
-if sim50.button("Simulate 50", use_container_width=True):
-    run_simulation(50)
+if sim50.button("Run 50 rounds", use_container_width=True):
+    run_simulation(50, simulation_style)
     st.rerun()
 if clear.button("Clear Data", use_container_width=True):
     st.session_state.history = []
@@ -160,20 +193,35 @@ if clear.button("Clear Data", use_container_width=True):
 
 if st.session_state.history:
     data = pd.DataFrame(st.session_state.history)
-    counts = data["Result"].value_counts().reindex(["Win", "Loss", "Tie"], fill_value=0)
-    total = len(data)
+    data["Win"] = (data["Result"] == "Win").astype(int)
+    data["Loss"] = (data["Result"] == "Loss").astype(int)
+    data["Bust"] = data["Player Bust"].astype(int)
 
-    win_rate = 100 * counts["Win"] / total
-    loss_rate = 100 * counts["Loss"] / total
-    st.metric("Rounds recorded", total)
-    st.write(f"Win rate: **{win_rate:.1f}%** · Loss rate: **{loss_rate:.1f}%**")
-    st.bar_chart(counts, color="#d4af37")
-    st.dataframe(data, hide_index=True, use_container_width=True)
+    summary = data.groupby("Play Style").agg(
+        Rounds=("Result", "size"),
+        Win_Rate=("Win", "mean"),
+        Loss_Rate=("Loss", "mean"),
+        Bust_Rate=("Bust", "mean"),
+        Average_Hits=("Number of Hits", "mean"),
+        Average_Cards=("Cards in Hand", "mean"),
+    ).reset_index()
+    for column in ["Win_Rate", "Loss_Rate", "Bust_Rate"]:
+        summary[column] = (summary[column] * 100).round(1)
+    summary[["Average_Hits", "Average_Cards"]] = summary[
+        ["Average_Hits", "Average_Cards"]
+    ].round(2)
+
+    st.subheader("Does play style affect the outcome?")
+    st.dataframe(summary, hide_index=True, use_container_width=True)
+    st.bar_chart(summary.set_index("Play Style")[["Win_Rate", "Loss_Rate", "Bust_Rate"]])
+
+    st.subheader("Round-level data")
+    st.dataframe(data.drop(columns=["Win", "Loss", "Bust"]), hide_index=True)
     st.download_button(
-        "Download results as CSV",
-        data.to_csv(index=False),
-        file_name="blackjack_results.csv",
-        mime="text/csv",
+        "Download all round data as CSV",
+        data.drop(columns=["Win", "Loss", "Bust"]).to_csv(index=False),
+        "blackjack_strategy_data.csv",
+        "text/csv",
     )
 else:
-    st.info("Finish a round or run a simulation to create the chart and table.")
+    st.info("Play a round or simulate a strategy to build the analysis.")

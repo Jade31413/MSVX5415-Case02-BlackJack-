@@ -1,9 +1,23 @@
 # Blackjack Lite — Python and Streamlit
 
-A beginner-friendly blackjack game with a results table, win/loss chart, CSV
-download, and buttons that simulate 10 or 50 rounds.
+A beginner-friendly blackjack strategy experiment with a game, detailed results
+table, comparison chart, CSV download, and 10- or 50-round simulations.
 
-## Play it online here -> https://kydxtwgc2g4pqgstxlsrpv.streamlit.app/
+## Analysis question
+
+**How does a player's style affect their win rate, loss rate, and bust rate?**
+
+The experiment compares three simple strategies:
+
+- **Cautious:** hit below 15, then stand.
+- **Standard:** hit below 17, then stand.
+- **Aggressive:** hit below 19, then stand.
+
+Each round records the play style, starting total, dealer up card, number of hits,
+number of cards held, final totals, bust status, and result. This makes it possible
+to analyze why the outcomes differ instead of only counting random wins.
+
+## Play it online here -> 
 
 
 ## Run locally
@@ -29,4 +43,5 @@ streamlit run app.py
 - Loops control the dealer and simulations.
 - Random selection creates unpredictable cards.
 - Streamlit session state remembers rounds after button clicks.
-- Pandas creates a table and downloadable CSV file.
+- Pandas groups the data by strategy and calculates rates and averages.
+- The downloadable CSV contains one detailed row for every completed round.
