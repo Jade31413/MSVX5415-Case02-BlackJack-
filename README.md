@@ -3,6 +3,9 @@
 A beginner-friendly blackjack game with a results table, win/loss chart, CSV
 download, and buttons that simulate 10 or 50 rounds.
 
+## Play it online here -> https://kydxtwgc2g4pqgstxlsrpv.streamlit.app/
+
+
 ## Run locally
 
 ```bash
