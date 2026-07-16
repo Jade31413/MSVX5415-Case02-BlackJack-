@@ -9,7 +9,8 @@ table, comparison chart, CSV download, and 10- or 50-round simulations.
 
 ## Analysis question
 
-**How does a player's style affect their win rate, loss rate, and bust rate?**
+1. **How do human players compare in win rate, loss rate, and bust rate?**
+2. **Which automatic play style performs best in the collected simulations?**
 
 The experiment compares three simple strategies:
 
@@ -17,9 +18,18 @@ The experiment compares three simple strategies:
 - **Standard:** hit below 17, then stand.
 - **Aggressive:** hit below 19, then stand.
 
-Each round records the play style, starting total, dealer up card, number of hits,
-number of cards held, final totals, bust status, and result. This makes it possible
-to analyze why the outcomes differ instead of only counting random wins.
+Each round records the player name, play style, starting hand, dealer up card,
+number of hits, number of cards held, final hand, totals, bust status, and result.
+This makes it possible to analyze why outcomes differ instead of only counting wins.
+
+## Recommendation features
+
+- The **Current Move Advisor** compares Hit and Stand using 800 possible deals.
+  It uses only visible information and reports estimated success and bust rates.
+- The **Player & Strategy Analysis** summarizes the named player's past rounds.
+  After simulations are collected, it identifies the tested style with the highest
+  observed win rate, using the lower bust rate to break a tie.
+- Visual cards use a complete shuffled 52-card deck with ranks and suits.
 
 ## Run locally
 
