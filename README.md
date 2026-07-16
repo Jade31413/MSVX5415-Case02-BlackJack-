@@ -9,13 +9,7 @@ table, comparison chart, CSV download, and 10- or 50-round simulations.
 
 ## Analysis question
 
-The app can answer two questions:
-
-1. **How do different human players compare in win, loss, and bust rates?**
-2. **How does an automatic strategy affect win rate, loss rate, and bust rate?**
-
-Before playing, the person enters a name. Each completed manual round keeps that
-name, making it possible for several people to play and compare their results.
+**How does a player's style affect their win rate, loss rate, and bust rate?**
 
 The experiment compares three simple strategies:
 
@@ -23,9 +17,9 @@ The experiment compares three simple strategies:
 - **Standard:** hit below 17, then stand.
 - **Aggressive:** hit below 19, then stand.
 
-Each round records the player name, play style, starting total, dealer up card,
-number of hits, number of cards held, final totals, bust status, and result. This
-makes it possible to analyze why outcomes differ instead of only counting wins.
+Each round records the play style, starting total, dealer up card, number of hits,
+number of cards held, final totals, bust status, and result. This makes it possible
+to analyze why the outcomes differ instead of only counting random wins.
 
 ## Run locally
 
