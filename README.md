@@ -3,6 +3,10 @@
 A beginner-friendly blackjack strategy experiment with a game, detailed results
 table, comparison chart, CSV download, and 10- or 50-round simulations.
 
+## Play it online here -> https://xafpzb2lygzjr34tcclb8r.streamlit.app/
+## Play it online here -> https://xafpzb2lygzjr34tcclb8r.streamlit.app/
+## Play it online here -> https://xafpzb2lygzjr34tcclb8r.streamlit.app/
+
 ## Analysis question
 
 **How does a player's style affect their win rate, loss rate, and bust rate?**
@@ -16,9 +20,6 @@ The experiment compares three simple strategies:
 Each round records the play style, starting total, dealer up card, number of hits,
 number of cards held, final totals, bust status, and result. This makes it possible
 to analyze why the outcomes differ instead of only counting random wins.
-
-## Play it online here -> 
-
 
 ## Run locally
 
