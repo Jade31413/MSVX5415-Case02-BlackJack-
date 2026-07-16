@@ -51,11 +51,12 @@ def choose_result(player_total, dealer_total):
     return "Tie"
 
 
-def make_record(player, dealer, starting_total, hits, result, style, mode):
+def make_record(player, dealer, starting_total, hits, result, player_name, style, mode):
     """Create one useful row of data describing the player's round."""
     return {
         "Round": len(st.session_state.history) + 1,
         "Mode": mode,
+        "Player": player_name,
         "Play Style": style,
         "Starting Total": starting_total,
         "Dealer Up Card": dealer[0],
@@ -88,11 +89,11 @@ if any(name not in st.session_state for name in required_game_data):
     new_round()
 
 
-def finish_manual_round(result, style):
+def finish_manual_round(result, player_name):
     record = make_record(
         st.session_state.player, st.session_state.dealer,
         st.session_state.starting_total, st.session_state.hits,
-        result, style, "Played"
+        result, player_name, "Human Choice", "Played"
     )
     st.session_state.history.append(record)
     st.session_state.round_over = True
@@ -113,7 +114,10 @@ def simulate_round(style):
         dealer_turn(dealer, deck)
 
     result = choose_result(hand_total(player), hand_total(dealer))
-    return make_record(player, dealer, starting_total, hits, result, style, "Simulation")
+    return make_record(
+        player, dealer, starting_total, hits, result,
+        f"{style} Bot", style, "Simulation"
+    )
 
 
 def run_simulation(rounds, style):
@@ -124,13 +128,14 @@ def run_simulation(rounds, style):
 # ----- Player interface ----------------------------------------------------
 
 st.title("🃏 Blackjack Strategy Lab")
-st.caption("Play the game, then investigate which playing style performs best.")
-manual_style = st.selectbox(
-    "How would you describe your playing style?",
-    list(STYLES),
-    index=1,
-    help="Cautious stands early; aggressive accepts more bust risk."
+st.caption("Play with friends, compare player results, and test automatic strategies.")
+player_name = st.text_input(
+    "Player name",
+    value="Player 1",
+    max_chars=30,
+    help="This name is saved with each round for the player analysis."
 )
+player_name = player_name.strip() or "Anonymous"
 
 dealer_col, player_col = st.columns(2)
 with dealer_col:
@@ -151,7 +156,7 @@ if hit.button("Hit", disabled=st.session_state.round_over, use_container_width=T
     st.session_state.hits += 1
     if hand_total(st.session_state.player) > 21:
         st.session_state.message = "Bust! You lose."
-        finish_manual_round("Loss", manual_style)
+        finish_manual_round("Loss", player_name)
     else:
         st.session_state.message = "You drew a card. Hit again or stand?"
     st.rerun()
@@ -160,7 +165,7 @@ if stand.button("Stand", disabled=st.session_state.round_over, use_container_wid
     dealer_turn(st.session_state.dealer, st.session_state.deck)
     result = choose_result(hand_total(st.session_state.player), hand_total(st.session_state.dealer))
     st.session_state.message = f"{result}! Dealer total: {hand_total(st.session_state.dealer)}"
-    finish_manual_round(result, manual_style)
+    finish_manual_round(result, player_name)
     st.rerun()
 
 if again.button("New Round", use_container_width=True):
@@ -193,11 +198,14 @@ if clear.button("Clear Data", use_container_width=True):
 
 if st.session_state.history:
     data = pd.DataFrame(st.session_state.history)
+    # Keep older session rows usable after this player-name feature was added.
+    if "Player" not in data.columns:
+        data["Player"] = "Previous Player"
     data["Win"] = (data["Result"] == "Win").astype(int)
     data["Loss"] = (data["Result"] == "Loss").astype(int)
     data["Bust"] = data["Player Bust"].astype(int)
 
-    summary = data.groupby("Play Style").agg(
+    summary = data.groupby(["Player", "Play Style"]).agg(
         Rounds=("Result", "size"),
         Win_Rate=("Win", "mean"),
         Loss_Rate=("Loss", "mean"),
@@ -211,9 +219,9 @@ if st.session_state.history:
         ["Average_Hits", "Average_Cards"]
     ].round(2)
 
-    st.subheader("Does play style affect the outcome?")
+    st.subheader("Player and strategy comparison")
     st.dataframe(summary, hide_index=True, use_container_width=True)
-    st.bar_chart(summary.set_index("Play Style")[["Win_Rate", "Loss_Rate", "Bust_Rate"]])
+    st.bar_chart(summary.set_index("Player")[["Win_Rate", "Loss_Rate", "Bust_Rate"]])
 
     st.subheader("Round-level data")
     st.dataframe(data.drop(columns=["Win", "Loss", "Bust"]), hide_index=True)
